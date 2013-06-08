@@ -1,5 +1,5 @@
-# based on adafruit's arduino implementation
-
+# based on adafruit's arduino implementation, and
+# https://github.com/pololu/LSM303/blob/master/LSM303/LSM303.cpp
 import struct
 import math
 import time
@@ -84,9 +84,9 @@ class LSM303(object):
         self.i2cMag = Adafruit_I2C(LSM303_ADDRESS_MAG)
         self.i2cMag.write8(LSM303_REGISTER_MAG_MR_REG_M, 0x00)
         
-#        self.i2cAccel = Adafruit_I2C(LSM303_ADDRESS_ACCEL)
-#        self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG1_A, 0x27)
-#        self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG4_A, 0x00)
+        self.i2cAccel = Adafruit_I2C(LSM303_ADDRESS_ACCEL)
+        self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG1_A, 0x27)
+        self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG4_A, 0x00)
         
         self.magDataX = None
         self.magDataY = None
@@ -149,16 +149,16 @@ class LSM303(object):
         
     def readAccel(self):
         # Read the accelometer
-        bytesList = self.i2cAccel.readList(LSM303_REGISTER_ACCEL_OUT_X_L_A, 6)
+        bytesList = self.i2cAccel.readList(LSM303_REGISTER_ACCEL_OUT_X_L_A | 0x80, 6)
         byteData = "".join([chr(x) for x in bytesList])
         
         # Shift values to create properly formed integer (low byte first
-        x,y,z = struct.unpack(">hhh", byteData)
-        
-        self.acclDataX = x
-        self.acclDataY = y
-        self.acclDataZ = z
-    
+        x,y,z = struct.unpack("<hhh", byteData)
+
+        self.acclDataX = x >> 4
+        self.acclDataY = y >> 4
+        self.acclDataZ = z >> 4
+
     
     def getAcclEvent(self):
         self.readAccel()
@@ -175,9 +175,8 @@ if __name__ == '__main__':
         angle = l.getHeadingFromEvent(e)
         xyz = "(" + ", ".join(["{: 7.2f}"]*3) + ")"
         print "Heading = " , "{: 7.2f}".format(angle) , xyz.format(*e), "; d(x, y) = {: 7.2f}".format((x*x+y*y)**.5) , "; d(x, y, z) = {: 7.2f}".format((x*x + y*y + z*z)**.5)
-#        e = l.getAcclEvent()
-#        e = (l.acclDataX,l.acclDataY,l.acclDataZ)
-#        print "AccelData: ", xyz.format(*e)
-#        print ""
+        e = l.getAcclEvent()
+        print "AccelData: ", xyz.format(*e)
+        print ""
         time.sleep(1)
 
