@@ -1,0 +1,77 @@
+<html>
+
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+<script src="svg.js"></script>
+<script>
+SIZE = 10*6.25;
+
+CANVAS_SIZE = 3000;
+function drawAngles(draw, angles) {
+
+    // https://github.com/wout/svg.js
+    for (var i = 0; i < angles.length; i++) {
+        angle = angles[i];
+
+        var angleRad = Math.PI*angle/180;
+        var x = lastX + SIZE * Math.cos(angleRad);
+        var y = lastY + SIZE * Math.sin(angleRad);
+        lastX = x;
+        lastY = y;
+        //Do something
+        draw.line(lastX, lastY, x, y).stroke({ width: 1 })
+    }
+}
+
+</script>
+
+
+
+
+</head>
+<body>
+The outline drawer!!
+Here you go!
+<span id="captureindicator" style="visibility:hidden;color:green" >We are capturing</span>
+<div id="drawingcanvas">
+</div>
+
+<script>
+
+// drawAngles([0,90,90*2,90*3])
+function doAjaxOnce(onNewData) {
+    return $.ajax({
+      url: "/angles",
+    type: "GET",
+    dataType: "json",
+    success: function (data) {
+        if (data.length > 0) {
+            onNewData(data);
+        }
+    }
+    });
+}
+function doAjax(onNewData) {
+    doAjaxOnce(onNewData).done(function() {
+        doAjax(onNewData);
+    });
+
+}
+// empty server Q
+doAjaxOnce(function(x){});
+// prepare
+
+var lastX = CANVAS_SIZE/2;
+var lastY = CANVAS_SIZE/2;
+
+var draw = SVG('drawingcanvas').size(CANVAS_SIZE, CANVAS_SIZE)
+    
+// draw
+doAjax(function(angles){drawAngles(draw, angles)});
+$("#captureindicator").css("visibility", "visible");
+
+</script>
+</body>
+
+</html>
+
