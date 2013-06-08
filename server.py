@@ -19,11 +19,13 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         if self.path != "/angles":
             return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
         else:
+            print "Angles requested"
             angles = self.getAngles()
             self.send_response(200)
             self.send_header("Content-type", "text/json")
             self.end_headers()
-            # long poll...
+            
+            print "Provided angles:",angles
             self.wfile.write(json.dumps(angles))
 
     def getAngles(self):
@@ -47,6 +49,7 @@ def getSensorData(q):
     sensor.init()
     
     while True:
+        print "Got a click - sending angle"
         q.put(sensor.getAngle())
 
 PORT = 8000
@@ -60,16 +63,17 @@ class ReuseAddrServer(SocketServer.TCPServer):
         self.server_activate()
 
 def main():
-    handler = MyHandler
-    server = SocketServer.TCPServer(("", PORT), handler)
-
+    # start process, so it wont get the server file
     p = Process(target=getSensorData, args=(angleQ,))
     p.start()
     
+    handler = MyHandler
+    server = SocketServer.TCPServer(("", PORT), handler)
+    
     server.serve_forever()
-    
-    
-    
+
+
+
 if __name__ == "__main__":
     main()
 

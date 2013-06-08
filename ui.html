@@ -4,9 +4,8 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
 <script src="svg.js"></script>
 <script>
-SIZE = 10*6.25;
-
-CANVAS_SIZE = 3000;
+SIZE = 6.25;
+CANVAS_SIZE = 800;
 function drawAngles(draw, angles) {
 
     // https://github.com/wout/svg.js
@@ -16,10 +15,10 @@ function drawAngles(draw, angles) {
         var angleRad = Math.PI*angle/180;
         var x = lastX + SIZE * Math.cos(angleRad);
         var y = lastY + SIZE * Math.sin(angleRad);
-        lastX = x;
-        lastY = y;
         //Do something
         draw.line(lastX, lastY, x, y).stroke({ width: 1 })
+        lastX = x;
+        lastY = y;
     }
 }
 
