@@ -73,7 +73,7 @@ SENSORS_MAGFIELD_EARTH_MIN   = 30.0                   # Minimum magnetic field o
 SENSORS_PRESSURE_SEALEVELHPA = 1013.25                # Average sea level pressure is 1013.25 hPa 
 SENSORS_DPS_TO_RADS          = 0.017453293            # Degrees/s to rad/s multiplier */
 SENSORS_GAUSS_TO_MICROTESLA  = 100.0                  # Gauss to micro-Tesla multiplier 
-
+    
 class LSM303(object):
     
     def __init__(self):
@@ -87,6 +87,7 @@ class LSM303(object):
         self.i2cAccel = Adafruit_I2C(LSM303_ADDRESS_ACCEL)
         self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG1_A, 0x27)
         self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG4_A, 0x00)
+        self.i2cAccel.write8(LSM303_REGISTER_ACCEL_CTRL_REG4_A, 0x08) # DLHC: enable high resolution mode
         
         self.magDataX = None
         self.magDataY = None
@@ -97,7 +98,17 @@ class LSM303(object):
         self.acclDataZ = None       
 
         self.magGain = None
+        
+        self.magMinX = -580
+        self.magMinY = -620
+        self.magMinZ = -76
+        self.magMaxX = 533
+        self.magMaxY = 113
+        self.magMaxZ = 939
 
+
+        self.magMinY = -380
+        
         self.setMagGain(LSM303_MAGGAIN_1_3)
 
     def setMagGain(self, gain):
@@ -127,7 +138,7 @@ class LSM303(object):
         return self.getHeadingFromEvent(self.getMagEvent())
         
     def getHeadingFromEvent(self, event):
-        x,y,z = event
+        x,y,_ = event
         angle = (math.atan2(y,x) * 180) / math.pi;
         
         if angle < 0:
@@ -166,17 +177,98 @@ class LSM303(object):
         y = self.acclDataY * self.lsm303Accel_MG_LSB * SENSORS_GRAVITY_STANDARD
         z = self.acclDataZ * self.lsm303Accel_MG_LSB * SENSORS_GRAVITY_STANDARD
         return (x,y,z)
-    
+
+def d(*args):
+    return sum([x*x for x in args])**.5
+
 if __name__ == '__main__':
     l = LSM303()
+    minx, miny,minz = 0,0,0
+    maxx, maxy,maxz = 0,0,0
     while True:
         e = l.getMagEvent()
         x,y,z = e
+        mx,my,mz = e
         angle = l.getHeadingFromEvent(e)
         xyz = "(" + ", ".join(["{: 7.2f}"]*3) + ")"
-        print "Heading = " , "{: 7.2f}".format(angle) , xyz.format(*e), "; d(x, y) = {: 7.2f}".format((x*x+y*y)**.5) , "; d(x, y, z) = {: 7.2f}".format((x*x + y*y + z*z)**.5)
+        print "Heading = " , "{: 7.2f}".format(angle) , xyz.format(*e), "; d(x, y) = {: 7.2f}".format(d(x,y)) , "; d(x, y, z) = {: 7.2f}".format(d(x,y,z)), "; rawd(x,y,z)=",d(l.magDataX, l.magDataY, l.magDataZ)
+            
+        minx, miny,minz = min(minx,l.magDataX), min(miny,l.magDataY),min(minz,l.magDataZ)
+        maxx, maxy,maxz = max(maxx,l.magDataX),max(maxy,l.magDataY),max(maxz,l.magDataZ)
+        print "raws", l.magDataX, l.magDataY,l.magDataZ
+        print "mins", minx, miny,minz
+        print "maxs", maxx, maxy,maxz
+        
         e = l.getAcclEvent()
-        print "AccelData: ", xyz.format(*e)
-        print ""
+        x,y,z=e
+        # d should be earth gravity, but who knows...
+        # http://www.loveelectronics.co.uk/Tutorials/13/tilt-compensated-compass-arduino-tutorial
+        print "AccelData: ", xyz.format(*e),
+        da = d(x, y, z)
+        if da > 0:
+            x1,y1,z1=x/da,y/da,z/da        
+            print "d",da,"tilt x", "%.3f" % (math.asin(x1)*180/math.pi), "roll y", "%.3f"%(math.asin(y1)*180/math.pi)
+        
+        rollRadians  = math.asin(y1)
+        pitchRadians = math.asin(x1)
+  
+        cosRoll  = math.cos(rollRadians);
+        sinRoll  = math.sin(rollRadians);  
+        cosPitch = math.cos(pitchRadians);
+        sinPitch = math.sin(pitchRadians);
+        
+        # The tilt compensation algorithem.
+        Xh = mx * cosPitch + mz * sinPitch
+        Yh = mx * sinRoll * sinPitch + my * cosRoll - mz * sinRoll * cosPitch
+        print "XXX" ,Xh ,mx , cosPitch , mz , sinPitch
+        heading = math.atan2(Yh, Xh)
+        h = heading*180/math.pi
+        h = 360 + h if h < 0 else h
+        print "Compensated Heading = " , "{: 7.2f}".format(h)
+        
+        # N E S W
+        # mine:  [345,175,240,290]
+        # phone: [355,130,220,300]
+        # need to streach mine to 90 deg each:
+        #        [345, 345+90,...]
+        a = 175
+        b = 240
+        seg = 1
+        newAngle = None
+        for a,b in [(175,240), (240,290),(290,345)]:
+            if a <= angle <= b:
+                where = (angle-a) / (a-b)
+                newAngle = 345+90*seg+90*where
+                newAngle = newAngle % 360
+            seg += 1
+            
+        a = 345
+        b = 175
+        segLen = (360-a+b)
+        if newAngle is None:
+            # then it is in the last range...
+            if angle < 360:
+                where = (angle-a)/segLen
+            else: # < 175
+                where = (angle + (360-a))/segLen
+
+            newAngle = 345+90*where
+            newAngle = newAngle % 360
+
+        print "Kombina Heading = " , "{: 7.2f}".format(newAngle)
+        
+        # calibrated heading:
+        
+        x = (l.magDataX - l.magMinX)*1.0 / (l.magMaxX - l.magMinX)
+        y = (l.magDataY - l.magMinY)*1.0 / (l.magMaxY - l.magMinY)
+        z = (l.magDataZ - l.magMinZ)*1.0 / (l.magMaxZ - l.magMinZ)
+        x = x*2 -1
+        y = y*2 -1
+        z = z*2 -1
+        heading = math.atan2(y,x)
+        h = heading*180/math.pi
+        h = 360 + h if h < 0 else h
+        print "Calibreated Heading = " , "{: 7.2f}".format(h)
+        
         time.sleep(1)
 

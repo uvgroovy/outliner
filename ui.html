@@ -10,8 +10,10 @@ function drawAngles(draw, angles) {
 
     // https://github.com/wout/svg.js
     for (var i = 0; i < angles.length; i++) {
-        angle = angles[i];
+        angle = angles[i]["angle"];
 
+        setDebugInfo(angles[i])
+        
         var angleRad = Math.PI*angle/180;
         var x = lastX + SIZE * Math.cos(angleRad);
         var y = lastY + SIZE * Math.sin(angleRad);
@@ -22,6 +24,23 @@ function drawAngles(draw, angles) {
     }
 }
 
+var clicks = 0;
+
+function setDebugInfo(data) {
+    clicks += 1;
+    angle = data["angle"];
+    mag = data["mag"];
+    accel = data["accel"];
+    
+    $("#clicks").text(clicks);
+    $("#angle").text(angle);
+    $("#mx").text(mag[0]);
+    $("#my").text(mag[1]);
+    $("#mz").text(mag[2]);
+    $("#ax").text(accel[0]);
+    $("#ay").text(accel[1]);
+    $("#az").text(accel[2]);
+}
 </script>
 
 
@@ -32,6 +51,33 @@ function drawAngles(draw, angles) {
 The outline drawer!!
 Here you go!
 <span id="captureindicator" style="visibility:hidden;color:green" >We are capturing</span>
+<div >
+<ul>
+<li>Clicks: <span id="clicks"></span>
+</li>
+<li>Angle: <span id="angle"></span>
+</li>
+
+<li>mx: <span id="mx"></span>
+</li>
+
+<li>my: <span id="my"></span>
+</li>
+
+<li>mz: <span id="mz"></span>
+</li>
+
+<li>ax: <span id="ax"></span>
+</li>
+
+<li>ay: <span id="ay"></span>
+</li>
+
+<li>az: <span id="az"></span>
+</li>
+
+</ul>
+</div>
 <div id="drawingcanvas">
 </div>
 

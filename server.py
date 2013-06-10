@@ -42,15 +42,15 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         except Empty:
             return []
         
-    def addAngle(self, a):
-        self.queue.put(a)
-    
-def getSensorData(q):
+def getSensorDataProcess(q):
     sensor.init()
     
     while True:
         print "Got a click - sending angle"
-        q.put(sensor.getAngle())
+        data = sensor.getData()
+        angle = sensor.getAngleFromData(data)
+        mag,accel = data
+        q.put({"angle":angle,"mag":mag, "accel":accel})
 
 PORT = 8000
 
@@ -63,8 +63,10 @@ class ReuseAddrServer(SocketServer.TCPServer):
         self.server_activate()
 
 def main():
-    # start process, so it wont get the server file
-    p = Process(target=getSensorData, args=(angleQ,))
+    
+    # start process, so it wont get the server file descriptor
+    # also python multithreading is not real, so use another process.
+    p = Process(target=getSensorDataProcess, args=(angleQ,))
     p.start()
     
     handler = MyHandler

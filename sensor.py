@@ -21,10 +21,15 @@ def handleCick():
 def init():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PIN, GPIO.IN)
-        
-def getAngle():
+
+def getAngleFromData(data):
+    mag,accel = data
+    return compass.getHeadingFromEvent(mag)
+
+def getData():
     GPIO.wait_for_edge(PIN, GPIO.FALLING)
-    return compass.getHeading()
+    mag,accel = compass.getMagEvent(), compass.getAcclEvent()
+    return mag,accel
         
 def work():
     while True:
