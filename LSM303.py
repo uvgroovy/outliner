@@ -255,7 +255,7 @@ if __name__ == '__main__':
             newAngle = 345+90*where
             newAngle = newAngle % 360
 
-        print "Kombina Heading = " , "{: 7.2f}".format(newAngle)
+        #print "Kombina Heading = " , "{: 7.2f}".format(newAngle)
         
         # calibrated heading:
         
@@ -268,7 +268,7 @@ if __name__ == '__main__':
         heading = math.atan2(y,x)
         h = heading*180/math.pi
         h = 360 + h if h < 0 else h
-        print "Calibreated Heading = " , "{: 7.2f}".format(h)
-        
+        #print "Calibreated Heading = " , "{: 7.2f}".format(h)
+        print ""        
         time.sleep(1)
 
